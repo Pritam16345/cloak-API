@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const { text } = req.body;
     
     // Configuration
-    const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space/anonymize";
+    const CLOAK_BASE_URL = "https://pritu16345-cloak-api.hf.space";
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Securely loaded from Vercel
 
     if (!GEMINI_API_KEY) {
@@ -19,25 +19,24 @@ export default async function handler(req, res) {
 
     try {
         // --- STEP A: CALL CLOAK API (Sanitize PII) ---
-        // We use FormData because your Python API expects 'Form' fields
         const formData = new FormData();
         formData.append("prompt", text);
 
-        const cloakResponse = await fetch(CLOAK_API_URL, {
+        const cloakResponse = await fetch(`${CLOAK_BASE_URL}/anonymize`, {
             method: 'POST',
             body: formData
         });
 
         if (!cloakResponse.ok) {
             const err = await cloakResponse.text();
-            throw new Error(`Cloak Security Engine Failed: ${err}`);
+            throw new Error(`Cloak Security Engine (Anonymize) Failed: ${err}`);
         }
 
         const cloakData = await cloakResponse.json();
         const safePrompt = cloakData.safe_prompt;
+        const sessionId = cloakData.session_id; // IMPORTANT: We need this for Step C
 
         // --- STEP B: CALL GEMINI API (Get AI Response) ---
-        // We send the *Sanitized* text to Google
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         
         const geminiResponse = await fetch(geminiUrl, {
@@ -50,17 +49,34 @@ export default async function handler(req, res) {
 
         const geminiData = await geminiResponse.json();
         
-        // Check for Gemini errors (like blocking content)
         if (!geminiData.candidates || geminiData.candidates.length === 0) {
             throw new Error("AI Provider blocked the response or returned empty data.");
         }
 
-        const aiReply = geminiData.candidates[0].content.parts[0].text;
+        const aiRawReply = geminiData.candidates[0].content.parts[0].text;
 
-        // --- STEP C: RETURN RESULT TO FRONTEND ---
-        // We return both the AI answer and the 'redacted_input' so you can show the "Proof" in the UI
+        // --- STEP C: CALL CLOAK API (Restore/De-anonymize) ---
+        // We send the safe AI response back to Cloak to restore real values using the Session ID
+        const unmaskRes = await fetch(`${CLOAK_BASE_URL}/deanonymize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: sessionId,
+                ai_response_text: aiRawReply
+            })
+        });
+
+        if (!unmaskRes.ok) {
+            throw new Error("Cloak Security Engine (Deanonymize) Failed");
+        }
+
+        const unmaskData = await unmaskRes.json();
+        const finalRestoredResponse = unmaskData.final_restored_response;
+
+        // --- STEP D: RETURN RESULT TO FRONTEND ---
+        // We return the restored response for the user, but keep safePrompt for the Inspector
         res.status(200).json({
-            response: aiReply,
+            response: finalRestoredResponse,
             redacted_input: safePrompt
         });
 
