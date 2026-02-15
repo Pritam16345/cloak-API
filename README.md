@@ -9,6 +9,13 @@
 
 ---
 
+## 🚀 Live Demo
+
+* **Frontend (Chat Interface):** [cloakent-api-website.vercel.app](https://cloak-api.vercel.app/)
+* **Backend (API Docs):** Hosted on Hugging Face Spaces [cloakent-api.hf.space](https://pritu16345-cloak-api.hf.space)
+
+
+
 ## 🚀 Key Features
 
 * **Zero-Trust Architecture**: Ensures no sensitive data reaches public LLMs (like GPT-4 or Gemini) by sanitizing inputs in real-time.
