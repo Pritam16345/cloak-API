@@ -1,6 +1,6 @@
 // --- CONFIGURATION ---
 const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
-// REMOVED: const GEMINI_API_KEY... (No longer needed on client side!)
+
 
 // State
 let auditHistory = [];
@@ -70,14 +70,21 @@ async function checkBackendHealth() {
     const statusText = document.getElementById('status-text');
     const statusDot = document.getElementById('status-dot');
     try {
-        await fetch(CLOAK_API_URL, { method: 'GET' });
+        const response = await fetch(CLOAK_API_URL, { method: 'GET' });
+        
+        // ADD THIS CHECK: Ensure status is 200 (OK)
+        if (!response.ok) {
+            throw new Error("Server is building or busy");
+        }
+
         isBackendOnline = true;
         statusText.innerText = "Online";
         statusText.className = "text-emerald-400";
         statusDot.className = "status-dot-on";
     } catch (error) {
         isBackendOnline = false;
-        statusText.innerText = "Offline";
+        // Optional: Show "Building..." if you suspect an update
+        statusText.innerText = "Offline"; 
         statusText.className = "text-red-400";
         statusDot.className = "status-dot-off";
     }
