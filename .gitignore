@@ -1,0 +1,4 @@
+cloak_env/
+__pycache__/
+*.db
+.DS_Store
