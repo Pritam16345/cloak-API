@@ -1,6 +1,5 @@
 // --- CONFIGURATION ---
 const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
-// REMOVED: const GEMINI_API_KEY... (No longer needed on client side!)
 
 // State
 let auditHistory = [];
