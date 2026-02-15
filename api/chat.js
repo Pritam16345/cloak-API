@@ -76,8 +76,9 @@ export default async function handler(req, res) {
         // --- STEP D: RETURN RESULT TO FRONTEND ---
         // We return the restored response for the user, but keep safePrompt for the Inspector
         res.status(200).json({
-            response: finalRestoredResponse,
-            redacted_input: safePrompt
+            response: finalRestoredResponse, // Restored for the user
+            redacted_input: safePrompt,      // Used for "PII_REDACTED" log
+            raw_ai_response: aiRawReply      // NEW: Added for "AI_RESPONSE" log
         });
 
     } catch (error) {

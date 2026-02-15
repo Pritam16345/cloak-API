@@ -88,19 +88,20 @@ async function handleSend() {
     const inputField = document.getElementById('user-input');
     const text = inputField.value;
 
-    if (!text) return; // Note: Current demo supports text only
+    if (!text) return; 
 
     // UI Message Construction
     addChatMessage('user', text);
     inputField.value = '';
     
+    // Clear file selection if any
     if (selectedFile) {
         addLog('WARN', 'File upload skipped: Gateway currently accepts text only.', 'text-yellow-500');
         clearFileSelection();
     }
 
     try {
-        // 1. SEND TO MIDDLEWARE (Node.js)
+        // 1. INITIAL INTERCEPTION
         addLog('INTERCEPT_REQ', 'Routing traffic to Enterprise Middleware...', 'text-yellow-500');
         
         const response = await fetch(API_ENDPOINT, {
@@ -109,7 +110,7 @@ async function handleSend() {
             body: JSON.stringify({ text: text })
         });
 
-        // Check for 404/500 errors
+        // Check for server-side errors
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             throw new Error(errData.error || `Server Error: ${response.status}`);
@@ -117,28 +118,31 @@ async function handleSend() {
 
         const data = await response.json();
 
-        // 2. PROCESS RESPONSE
-        const safeInput = data.redacted_input;
-        const aiResponse = data.response;
-
-        // Log the Redaction (Proof of Security)
-        addLog('PII_REDACTED', `Middleware Sanitization Complete.\nOriginal: "${text}"\nRedacted: "${safeInput}"`, 'text-emerald-400');
+        // --- STEP A: LOG THE REDACTION (OUTBOUND) ---
+        addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${text}"\nRedacted: "${data.redacted_input}"`, 'text-emerald-400');
         
-        // Log the AI Response
-        addLog('AI_RESPONSE', `Received secure payload from Gemini via Middleware.`, 'text-blue-300');
+        // --- STEP B: LOG THE RAW AI RESPONSE (INBOUND) ---
+        // This shows the interviewer that Gemini sent back placeholders
+        addLog('AI_RESPONSE', `Raw Payload received from Gemini:\n"${data.raw_ai_response}"`, 'text-blue-300');
 
-        // Display Message
-        addChatMessage('ai', aiResponse);
+        // --- STEP C: LOG THE DE-ANONYMIZATION (FINAL) ---
+        // This shows the final restoration step handled by the middleware
+        addLog('DEANONYMIZE', `Entities restored via Secure Session.\nFinal Output: "${data.response}"`, 'text-purple-400');
 
-        // Update Audit Log
-        const detectedEntitiesCount = (safeInput.match(/\[.*?\]/g) || []).length;
-        const status = detectedEntitiesCount > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
+        // 2. DISPLAY FINAL MESSAGE TO USER
+        addChatMessage('ai', data.response);
+
+        // 3. UPDATE AUDIT LOG (Show specific tags like [PERSON_1])
+        const detectedEntities = data.redacted_input.match(/\[.*?\]/g) || [];
+        // Create a unique list of detected tags
+        const entityTags = detectedEntities.length > 0 ? Array.from(new Set(detectedEntities)).join(", ") : "None";
+        const status = detectedEntities.length > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
         
         auditHistory.unshift({
             time: new Date().toLocaleTimeString(),
             status: status,
             originalLen: text.length + " chars",
-            entities: detectedEntitiesCount > 0 ? `${detectedEntitiesCount} Entities Masked` : "None"
+            entities: entityTags 
         });
         
         if(document.getElementById('view-audit').classList.contains('active')) renderAuditTable();
