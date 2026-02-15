@@ -1,5 +1,5 @@
 // --- CONFIGURATION ---
-const CLOAK_API_URL = "http://127.0.0.1:8000"; 
+const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
 const GEMINI_API_KEY = "AIzaSyDseu9WQ21fuYem7OLHa7Uc7YC8LFybCug"; 
 
 // State
