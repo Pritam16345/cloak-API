@@ -1,7 +1,6 @@
 // --- CONFIGURATION ---
 const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
 
-
 // State
 let auditHistory = [];
 let isBackendOnline = false;
