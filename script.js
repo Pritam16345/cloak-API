@@ -1,6 +1,6 @@
 // --- CONFIGURATION ---
 const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
-const GEMINI_API_KEY = "AIzaSyDseu9WQ21fuYem7OLHa7Uc7YC8LFybCug"; 
+// REMOVED: const GEMINI_API_KEY... (No longer needed on client side!)
 
 // State
 let auditHistory = [];
@@ -90,95 +90,57 @@ async function handleSend() {
     const inputField = document.getElementById('user-input');
     const text = inputField.value;
 
-    if (!text && !selectedFile) return;
-    if (GEMINI_API_KEY.includes("PASTE_YOUR")) {
-        alert("Please paste your Gemini API Key in script.js");
-        return;
-    }
+    if (!text) return; // Note: Gateway currently supports text only, not files
 
     // UI Message Construction
-    let userMsg = text;
-    if (selectedFile) {
-        const fileMsg = `<i class="fas fa-file-alt mr-2"></i> Attached: <strong>${selectedFile.name}</strong>`;
-        userMsg = text ? `${text}<br><br>${fileMsg}` : fileMsg;
-    }
-
-    addChatMessage('user', userMsg);
+    addChatMessage('user', text);
     inputField.value = '';
     
-    // Hold file reference
-    const fileToSend = selectedFile; 
-    clearFileSelection();
+    // Clear file selection if any (visual cleanup)
+    if (selectedFile) {
+        addLog('WARN', 'File upload skipped: Gateway currently accepts text only.', 'text-yellow-500');
+        clearFileSelection();
+    }
 
     try {
         if (!isBackendOnline) throw new Error("Backend Offline. Security check failed.");
 
-        // 1. ANONYMIZE (Server-Side)
-        addLog('INTERCEPT_REQ', 'Intercepting traffic for server analysis...', 'text-yellow-500');
+        // 1. SECURE GATEWAY CALL
+        addLog('INTERCEPT_REQ', 'Routing traffic to Secure Gateway...', 'text-yellow-500');
         
-        const formData = new FormData();
-        if (text) formData.append("prompt", text);
-        if (fileToSend) formData.append("file", fileToSend);
-
-        const shieldRes = await fetch(`${CLOAK_API_URL}/anonymize`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!shieldRes.ok) throw new Error("Anonymization failed on server.");
-        
-        const shieldData = await shieldRes.json();
-        const safePrompt = shieldData.safe_prompt;
-        const sessionId = shieldData.session_id;
-        const isRedacted = shieldData.threats_detected;
-        const detectedEntities = shieldData.detected_entities || [];
-
-        // --- SHOW ACTUAL TEXT (Not Size) ---
-        const originalDisplay = text + (fileToSend ? `\n[+ File: ${fileToSend.name}]` : "");
-        addLog('PII_REDACTED', `Original: "${originalDisplay}"\n\nRedacted: "${safePrompt}"`, 'text-emerald-400');
-
-        // 2. EXTERNAL AI CALL
-        addLog('EXT_API_CALL', 'Routing sanitized data to Gemini...', 'text-blue-400');
-        
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        // We use the new /secure_chat_gateway endpoint
+        const response = await fetch(`${CLOAK_API_URL}/secure_chat_gateway`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: "You are a corporate assistant. " + safePrompt }] }]
-            })
+            body: JSON.stringify({ text: text })
         });
 
-        const geminiData = await geminiRes.json();
-        if (!geminiData.candidates) throw new Error("Gemini Error: " + JSON.stringify(geminiData));
-        const aiRaw = geminiData.candidates[0].content.parts[0].text;
+        const data = await response.json();
 
-        addLog('AI_RESPONSE', `Encrypted Payload: "${aiRaw}"`, 'text-blue-300');
+        if (data.error) throw new Error(data.error);
 
-        // 3. DEANONYMIZE
-        addLog('DEANONYMIZE', 'Restoring entities via secure session...', 'text-purple-400');
+        const safeInput = data.redacted_input;
+        const aiResponse = data.response;
 
-        const unmaskRes = await fetch(`${CLOAK_API_URL}/deanonymize`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                session_id: sessionId,
-                ai_response_text: aiRaw
-            })
-        });
+        // 2. LOGGING THE REDACTION (Happened on Server)
+        addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${text}"\nRedacted: "${safeInput}"`, 'text-emerald-400');
+        
+        // 3. LOGGING THE AI RESPONSE
+        addLog('AI_RESPONSE', `Received secure payload from Gemini via Gateway.`, 'text-blue-300');
 
-        const unmaskData = await unmaskRes.json();
-        const finalResponse = unmaskData.final_restored_response;
+        // 4. DELIVERY
+        addChatMessage('ai', aiResponse);
 
-        addLog('DELIVERY', `Final Output: "${finalResponse}"`, 'text-emerald-400');
-        addChatMessage('ai', finalResponse);
-
-        // 4. AUDIT LOG
-        const formattedEntities = detectedEntities.length > 0 ? detectedEntities.join(", ") : "None";
+        // 5. UPDATE AUDIT LOG
+        // Since we don't have the entity count from the gateway response, we estimate based on the redacted string
+        const detectedEntitiesCount = (safeInput.match(/\[.*?\]/g) || []).length;
+        const status = detectedEntitiesCount > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
+        
         auditHistory.unshift({
             time: new Date().toLocaleTimeString(),
-            status: isRedacted ? "PII PROTECTED" : "CLEAN TRAFFIC",
-            originalLen: safePrompt.length + " chars",
-            entities: formattedEntities
+            status: status,
+            originalLen: text.length + " chars",
+            entities: detectedEntitiesCount > 0 ? `${detectedEntitiesCount} Entities Masked` : "None"
         });
         
         if(document.getElementById('view-audit').classList.contains('active')) renderAuditTable();
