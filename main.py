@@ -9,23 +9,12 @@ import re
 import uuid
 import json
 import io
-from pypdf import PdfReader
-import google.generativeai as genai
-import os
-import httpx  # Used for the secure gateway
+from pypdf import PdfReader 
 
 # Initialize Database
 init_db()
 
 app = FastAPI(title="Cloak-API: Enterprise Edition")
-
-# --- 1. Load API Key Securely ---
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
-if not GEMINI_KEY:
-    print("Error: GEMINI_API_KEY not found in secrets!")
-
-# Configure Gemini (Optional fallback, but we will use HTTPX for the gateway)
-genai.configure(api_key=GEMINI_KEY)
 
 @app.get("/")
 def health_check():
@@ -46,7 +35,7 @@ def get_db():
     finally:
         db.close()
 
-# --- SECURITY CONFIGURATION (Unchanged) ---
+# --- SECURITY CONFIGURATION ---
 configuration = {
     "nlp_engine_name": "spacy",
     "models": [{"lang_code": "en", "model_name": "en_core_web_trf"}],
@@ -63,20 +52,22 @@ except Exception as e:
     # Fallback to basic english if TRF fails
     analyzer = AnalyzerEngine()
 
-# --- CUSTOM RECOGNIZERS (Unchanged) ---
-# 1. Email
+# --- AGGRESSIVE RECOGNIZERS (Score = 1.0 means "Always Redact") ---
+
+# 1. Email (Stricter & Higher Score)
 email_pattern = Pattern(name="email_pattern", regex=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="EMAIL_ADDRESS", patterns=[email_pattern]))
 
-# 2. Phone Number
+# 2. Phone Number (Catch +91, 000-000, etc.)
 phone_pattern = Pattern(name="phone_pattern", regex=r"(\+?(\d{1,3})?[- .]?\(?\d{3}\)?[- .]?\d{3}[- .]?\d{4})|(\+91[\-\s]?[6-9]\d{9})", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PHONE_NUMBER", patterns=[phone_pattern]))
 
-# 3. LinkedIn & GitHub URLs
+# 3. LinkedIn & GitHub URLs (Resume Leaks)
 link_pattern = Pattern(name="link_pattern", regex=r"((linkedin\.com\/in\/|github\.com\/)[\w\-\_]+)", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PROFESSIONAL_LINK", patterns=[link_pattern]))
 
-# 4. Context Names
+# 4. "Context" Name Recognition (e.g., "Name: Rahul")
+# Catches lines starting with Name:, Candidate:, etc.
 label_name_pattern = Pattern(name="label_name", regex=r"(?i)(Name|Candidate|Employee|Student)(\s*[:\-]\s*)([A-Z][a-z]+ [A-Z][a-z]+)", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PERSON", patterns=[label_name_pattern]))
 
@@ -89,6 +80,7 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_AADHAAR"
 
 # --- HELPER FUNCTIONS ---
 def resolve_overlaps(results):
+    # Sort by score (highest first), then length
     results.sort(key=lambda x: (x.score, x.end - x.start), reverse=True)
     final_results = []
     taken_indices = set()
@@ -104,64 +96,8 @@ class UnmaskRequest(BaseModel):
     session_id: str
     ai_response_text: str
 
-# NEW: Added this model for the chat gateway
-class ChatRequest(BaseModel):
-    text: str
-
 # --- ENDPOINTS ---
 
-# --- NEW: SECURE GATEWAY ENDPOINT ---
-# This replaces your old broken /chat endpoint.
-# It handles: Redaction -> Secure Gemini Call -> Return Clean Response
-@app.post("/secure_chat_gateway")
-async def chat_gateway(request: ChatRequest):
-    try:
-        # 1. INTERNAL REDACTION (Using your existing analyzer logic)
-        raw_results = analyzer.analyze(
-            text=request.text,
-            entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "IN_PAN_CARD", "IN_AADHAAR"],
-            language="en",
-            score_threshold=0.3
-        )
-        
-        # Simple masking for the chat (Fast processing)
-        redacted_text = request.text
-        # Sort reverse to not mess up indices
-        for result in sorted(raw_results, key=lambda x: x.start, reverse=True):
-            redacted_text = redacted_text[:result.start] + f"[{result.entity_type}]" + redacted_text[result.end:]
-
-        # 2. SECURE GEMINI CALL
-        # The key stays on the server. The browser never sees it.
-        if not GEMINI_KEY:
-            return {"error": "Server configuration error: API Key missing."}
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_KEY}"
-        payload = {"contents": [{"parts": [{"text": redacted_text}]}]}
-        
-        # We use HTTPX for an async call to Google
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=30.0)
-            
-            if response.status_code != 200:
-                return {"error": f"Gemini Error: {response.text}"}
-            
-            ai_data = response.json()
-
-        # 3. RETURN RESULT
-        if "candidates" in ai_data and ai_data["candidates"]:
-            ai_reply = ai_data["candidates"][0]["content"]["parts"][0]["text"]
-            return {
-                "response": ai_reply,         
-                "redacted_input": redacted_text # Useful for showing the user what happened
-            }
-        else:
-            return {"error": "AI provider blocked the response (Safety Filter)."}
-
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# --- EXISTING: ANONYMIZE ENDPOINT (Unchanged) ---
 @app.post("/anonymize")
 async def anonymize_data(
     prompt: str = Form(None),
@@ -180,6 +116,7 @@ async def anonymize_data(
                 for page in pdf_reader.pages:
                     text = page.extract_text()
                     if text:
+                        # Normalize spaces to help AI recognize words
                         pdf_text += text.replace('\xa0', ' ') + "\n"
                 
                 final_text += f"\n\n[FILE CONTENT START]\n{pdf_text}\n[FILE CONTENT END]"
@@ -200,7 +137,7 @@ async def anonymize_data(
             "PROFESSIONAL_LINK", "URL"
         ],
         language="en",
-        score_threshold=0.25 
+        score_threshold=0.25 # Extremely low threshold: Catch everything suspicious
     )
     
     analysis_results = resolve_overlaps(raw_results)
@@ -214,6 +151,7 @@ async def anonymize_data(
 
     for result in results_sorted:
         entity_type = result.entity_type
+        # Simplify custom tags (e.g. PROFESSIONAL_LINK -> URL)
         if entity_type == "PROFESSIONAL_LINK": entity_type = "URL"
         
         counters[entity_type] = counters.get(entity_type, 0) + 1
@@ -253,7 +191,6 @@ async def anonymize_data(
         "detected_entities": detected_list
     }
 
-# --- EXISTING: DEANONYMIZE ENDPOINT (Unchanged) ---
 @app.post("/deanonymize")
 def deanonymize_data(request: UnmaskRequest, db: Session = Depends(get_db)):
     session_data = db.query(PrivacySession).filter(PrivacySession.session_id == request.session_id).first()

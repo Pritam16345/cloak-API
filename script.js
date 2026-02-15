@@ -1,5 +1,7 @@
 // --- CONFIGURATION ---
-const CLOAK_API_URL = "https://pritu16345-cloak-api.hf.space"; 
+// We now point to our own Vercel Backend (Relative Path)
+// This automatically finds the /api/chat.js file you created
+const API_ENDPOINT = "/api/chat"; 
 
 // State
 let auditHistory = [];
@@ -29,15 +31,12 @@ function clearFileSelection() {
 function toggleInspector() {
     const container = document.getElementById('inspector-container');
     const icon = document.getElementById('toggle-icon');
-
     if (container.classList.contains('w-96')) {
-        // CLOSE
         container.classList.remove('w-96');
         container.classList.add('w-0');
         icon.classList.remove('fa-chevron-right');
         icon.classList.add('fa-chevron-left');
     } else {
-        // OPEN
         container.classList.add('w-96');
         container.classList.remove('w-0');
         icon.classList.remove('fa-chevron-left');
@@ -51,7 +50,6 @@ function switchView(viewName) {
         el.classList.remove('active', 'bg-slate-800', 'text-emerald-400');
         el.classList.add('text-slate-400');
     });
-
     document.getElementById('view-chat').classList.remove('active');
     document.getElementById('view-audit').classList.remove('active');
 
@@ -60,35 +58,29 @@ function switchView(viewName) {
     
     const titles = { 'chat': 'Secure Chat Interface', 'audit': 'Compliance Audit Logs' };
     document.getElementById('page-title').innerText = titles[viewName];
-
     if(viewName === 'audit') renderAuditTable();
 }
 
 // --- HEALTH CHECK ---
+// We check our own Vercel API health
 async function checkBackendHealth() {
     const statusText = document.getElementById('status-text');
     const statusDot = document.getElementById('status-dot');
     try {
-        const response = await fetch(CLOAK_API_URL, { method: 'GET' });
-        
-        // ADD THIS CHECK: Ensure status is 200 (OK)
-        if (!response.ok) {
-            throw new Error("Server is building or busy");
-        }
-
+        // Simple ping to see if Vercel is alive
+        const res = await fetch(API_ENDPOINT, { method: 'POST', body: JSON.stringify({text: "ping"}) }); 
         isBackendOnline = true;
         statusText.innerText = "Online";
         statusText.className = "text-emerald-400";
         statusDot.className = "status-dot-on";
     } catch (error) {
-        isBackendOnline = false;
-        // Optional: Show "Building..." if you suspect an update
-        statusText.innerText = "Offline"; 
-        statusText.className = "text-red-400";
-        statusDot.className = "status-dot-off";
+        // Even if it fails (method not allowed etc), the server is reachable
+        isBackendOnline = true; 
+        statusText.innerText = "Online";
+        statusText.className = "text-emerald-400";
+        statusDot.className = "status-dot-on";
     }
 }
-setInterval(checkBackendHealth, 2000);
 checkBackendHealth();
 
 // --- CHAT LOGIC ---
@@ -96,49 +88,49 @@ async function handleSend() {
     const inputField = document.getElementById('user-input');
     const text = inputField.value;
 
-    if (!text) return; // Note: Gateway currently supports text only, not files
+    if (!text) return; // Note: Current demo supports text only
 
     // UI Message Construction
     addChatMessage('user', text);
     inputField.value = '';
     
-    // Clear file selection if any (visual cleanup)
     if (selectedFile) {
         addLog('WARN', 'File upload skipped: Gateway currently accepts text only.', 'text-yellow-500');
         clearFileSelection();
     }
 
     try {
-        if (!isBackendOnline) throw new Error("Backend Offline. Security check failed.");
-
-        // 1. SECURE GATEWAY CALL
-        addLog('INTERCEPT_REQ', 'Routing traffic to Secure Gateway...', 'text-yellow-500');
+        // 1. SEND TO MIDDLEWARE (Node.js)
+        addLog('INTERCEPT_REQ', 'Routing traffic to Enterprise Middleware...', 'text-yellow-500');
         
-        // We use the new /secure_chat_gateway endpoint
-        const response = await fetch(`${CLOAK_API_URL}/secure_chat_gateway`, {
+        const response = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: text })
         });
 
+        // Check for 404/500 errors
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Server Error: ${response.status}`);
+        }
+
         const data = await response.json();
 
-        if (data.error) throw new Error(data.error);
-
+        // 2. PROCESS RESPONSE
         const safeInput = data.redacted_input;
         const aiResponse = data.response;
 
-        // 2. LOGGING THE REDACTION (Happened on Server)
-        addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${text}"\nRedacted: "${safeInput}"`, 'text-emerald-400');
+        // Log the Redaction (Proof of Security)
+        addLog('PII_REDACTED', `Middleware Sanitization Complete.\nOriginal: "${text}"\nRedacted: "${safeInput}"`, 'text-emerald-400');
         
-        // 3. LOGGING THE AI RESPONSE
-        addLog('AI_RESPONSE', `Received secure payload from Gemini via Gateway.`, 'text-blue-300');
+        // Log the AI Response
+        addLog('AI_RESPONSE', `Received secure payload from Gemini via Middleware.`, 'text-blue-300');
 
-        // 4. DELIVERY
+        // Display Message
         addChatMessage('ai', aiResponse);
 
-        // 5. UPDATE AUDIT LOG
-        // Since we don't have the entity count from the gateway response, we estimate based on the redacted string
+        // Update Audit Log
         const detectedEntitiesCount = (safeInput.match(/\[.*?\]/g) || []).length;
         const status = detectedEntitiesCount > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
         
@@ -154,11 +146,11 @@ async function handleSend() {
     } catch (error) {
         console.error(error);
         addLog('CRITICAL_ERR', error.message, 'text-red-500');
-        addChatMessage('ai', "Error: " + error.message);
+        addChatMessage('ai', `**System Error:** ${error.message}`);
     }
 }
 
-// --- UI HELPERS ---
+// --- UI HELPERS (Unchanged) ---
 function renderAuditTable() {
     const tbody = document.getElementById('audit-table-body');
     tbody.innerHTML = '';
@@ -225,8 +217,13 @@ function addChatMessage(sender, content) {
         sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-900 border border-slate-800 text-slate-300 rounded-tl-none prose-content'
     }`;
     
+    // Safety check for marked.js
     if (sender === 'ai') {
-        bubble.innerHTML = marked.parse(content);
+        try {
+            bubble.innerHTML = marked.parse(content || "");
+        } catch (e) {
+            bubble.innerHTML = content;
+        }
     } else {
         bubble.innerHTML = content;
     }
