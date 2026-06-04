@@ -207,8 +207,12 @@ def deanonymize_data(request: UnmaskRequest, db: Session = Depends(get_db)):
     entity_mapping = json.loads(session_data.entity_mapping)
     final_text = request.ai_response_text
     
-    for placeholder, real_value in entity_mapping.items():
-        pattern = re.compile(re.escape(placeholder), re.IGNORECASE)
+    # Sort mappings by placeholder length descending to prevent substring collisions
+    sorted_mappings = sorted(entity_mapping.items(), key=lambda x: len(x[0]), reverse=True)
+    for placeholder, real_value in sorted_mappings:
+        inner_tag = placeholder.strip("[]")
+        # Match tag with or without surrounding square brackets, ensuring it is not followed by a digit
+        pattern = re.compile(r"\[?" + re.escape(inner_tag) + r"\]?(?!\d)", re.IGNORECASE)
         final_text = pattern.sub(lambda m, val=real_value: val, final_text)
         
     return {
