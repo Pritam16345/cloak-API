@@ -109,10 +109,16 @@ async function handleSend() {
     const sendBtn = document.getElementById('send-btn');
     const text = inputField.value;
 
-    if (!text || inputField.disabled) return; 
+    if ((!text && !selectedFile) || inputField.disabled) return; 
 
     // UI Message Construction
-    addChatMessage('user', text);
+    let userMsg = text;
+    if (selectedFile && !text) {
+        userMsg = `Uploaded document: **${selectedFile.name}**`;
+    } else if (selectedFile && text) {
+        userMsg = `${text}\n\n*(Attached file: ${selectedFile.name})*`;
+    }
+    addChatMessage('user', userMsg);
     inputField.value = '';
     
     // Disable inputs to prevent spam during processing and typing
@@ -146,7 +152,8 @@ async function handleSend() {
         const data = await response.json();
 
         // --- STEP A: LOG THE REDACTION (OUTBOUND) ---
-        addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${text}"\nRedacted: "${data.redacted_input}"`, 'text-emerald-400');
+        const originalLogText = text || (selectedFile ? `[Uploaded File: ${selectedFile.name}]` : "");
+        addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${originalLogText}"\nRedacted: "${data.redacted_input}"`, 'text-emerald-400');
         
         // --- STEP B: LOG THE RAW AI RESPONSE (INBOUND) ---
         // This shows the interviewer that Gemini sent back placeholders
@@ -165,10 +172,12 @@ async function handleSend() {
         const entityTags = detectedEntities.length > 0 ? Array.from(new Set(detectedEntities)).join(", ") : "None";
         const status = detectedEntities.length > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
         
+        const originalLenDisplay = text ? (text.length + " chars") : (selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : "0 chars");
+        
         auditHistory.unshift({
             time: new Date().toLocaleTimeString(),
             status: status,
-            originalLen: text.length + " chars",
+            originalLen: originalLenDisplay,
             entities: entityTags 
         });
         
