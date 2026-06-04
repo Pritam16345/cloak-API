@@ -1,14 +1,21 @@
-// Proxy health check to verify Hugging Face Space availability directly
+// Direct runtime state check using Hugging Face Spaces API
 export default async function handler(req, res) {
-    const CLOAK_BASE_URL = "https://pritu16345-cloak-api.hf.space";
+    const SPACE_API_URL = "https://huggingface.co/api/spaces/pritu16345/cloak-api";
     try {
-        const hfRes = await fetch(CLOAK_BASE_URL, { signal: AbortSignal.timeout(5000) });
-        if (hfRes.ok) {
-            const data = await hfRes.json();
-            return res.status(200).json(data);
+        const apiRes = await fetch(SPACE_API_URL, { signal: AbortSignal.timeout(5000) });
+        if (!apiRes.ok) {
+            return res.status(502).json({ error: "Failed to fetch space metadata from Hugging Face" });
         }
-        return res.status(502).json({ error: "Hugging Face Space returned non-OK status" });
+        
+        const spaceData = await apiRes.json();
+        const stage = spaceData.runtime ? spaceData.runtime.stage : "";
+        
+        if (stage === "RUNNING") {
+            return res.status(200).json({ status: "System Online", stage: stage });
+        } else {
+            return res.status(503).json({ status: "System Offline", stage: stage });
+        }
     } catch (e) {
-        return res.status(502).json({ error: `Hugging Face Space connection failed: ${e.message}` });
+        return res.status(502).json({ error: `Health check failed: ${e.message}` });
     }
 }
