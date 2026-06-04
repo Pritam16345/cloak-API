@@ -1,13 +1,3 @@
----
-title: Cloak-API
-emoji: 🛡️
-colorFrom: indigo
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # 🛡️ CloakEnt | Enterprise AI Data Firewall
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
@@ -112,5 +102,3 @@ Ephemeral Storage: In the cloud deployment, uploaded files are processed in memo
 
 Audit Logs: Sensitive data in logs is hashed or masked based on configuration.
 
-## 📜 License
-This project is open-source and available under the MIT License.
