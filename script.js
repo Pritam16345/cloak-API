@@ -121,20 +121,20 @@ async function handleSend() {
     sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
     inputField.classList.add('opacity-50', 'cursor-not-allowed');
     
-    // Clear file selection if any
-    if (selectedFile) {
-        addLog('WARN', 'File upload skipped: Gateway currently accepts text only.', 'text-yellow-500');
-        clearFileSelection();
-    }
-
     try {
         // 1. INITIAL INTERCEPTION
         addLog('INTERCEPT_REQ', 'Routing traffic to Enterprise Middleware...', 'text-yellow-500');
         
+        const formData = new FormData();
+        formData.append("prompt", text);
+        if (selectedFile) {
+            formData.append("file", selectedFile);
+            addLog('FILE_UPLOAD', `Attaching file: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`, 'text-indigo-400');
+        }
+        
         const response = await fetch(API_ENDPOINT, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
+            body: formData
         });
 
         // Check for server-side errors
@@ -179,11 +179,12 @@ async function handleSend() {
         addLog('CRITICAL_ERR', error.message, 'text-red-500');
         await addChatMessage('ai', `**System Error:** ${error.message}`);
     } finally {
-        // Re-enable inputs
+        // Re-enable inputs and clear file selection
         inputField.disabled = false;
         sendBtn.disabled = false;
         sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         inputField.classList.remove('opacity-50', 'cursor-not-allowed');
+        clearFileSelection();
         inputField.focus();
     }
 }

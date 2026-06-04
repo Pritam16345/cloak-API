@@ -7,8 +7,6 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { text } = req.body;
-    
     // Configuration
     const CLOAK_BASE_URL = "https://pritu16345-cloak-api.hf.space";
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Securely loaded from Vercel
@@ -19,12 +17,14 @@ export default async function handler(req, res) {
 
     try {
         // --- STEP A: CALL CLOAK API (Sanitize PII) ---
-        const formData = new FormData();
-        formData.append("prompt", text);
-
+        // We forward the raw multipart request stream directly to Hugging Face
         const cloakResponse = await fetch(`${CLOAK_BASE_URL}/anonymize`, {
             method: 'POST',
-            body: formData
+            headers: {
+                'content-type': req.headers['content-type']
+            },
+            duplex: 'half',
+            body: req
         });
 
         if (!cloakResponse.ok) {
@@ -90,3 +90,10 @@ export default async function handler(req, res) {
         });
     }
 }
+
+// Disable body parsing to allow streaming multipart request directly
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
