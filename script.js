@@ -79,12 +79,8 @@ async function checkBackendHealth() {
     statusDot.className = "status-dot-connecting";
     
     try {
-        // Simple ping to see if Vercel is alive
-        const res = await fetch(API_ENDPOINT, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({text: "ping"}) 
-        }); 
+        // Ping the dedicated health proxy endpoint (verifies HF Space)
+        const res = await fetch("/api/health"); 
         
         if (res.ok) {
             isBackendOnline = true;
