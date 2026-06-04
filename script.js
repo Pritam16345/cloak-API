@@ -156,8 +156,8 @@ async function handleSend() {
         addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${originalLogText}"\nRedacted: "${data.redacted_input}"`, 'text-emerald-400');
         
         // --- STEP B: LOG THE RAW AI RESPONSE (INBOUND) ---
-        // This shows the interviewer that Gemini sent back placeholders
-        addLog('AI_RESPONSE', `Raw Payload received from Gemini:\n"${data.raw_ai_response}"`, 'text-blue-300');
+        // This shows the interviewer that Groq/Llama sent back placeholders
+        addLog('AI_RESPONSE', `Raw Payload received from Groq:\n"${data.raw_ai_response}"`, 'text-blue-300');
 
         // --- STEP C: LOG THE DE-ANONYMIZATION (FINAL) ---
         // This shows the final restoration step handled by the middleware

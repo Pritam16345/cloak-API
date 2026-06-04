@@ -28,7 +28,7 @@ pinned: false
 
 ## 🚀 Key Features
 
-* **Zero-Trust Orchestration**: Implements a middleware-based orchestrator that ensures no sensitive data reaches public LLMs (like GPT-4 or Gemini) by sanitizing inputs in real-time.
+* **Zero-Trust Orchestration**: Implements a middleware-based orchestrator that ensures no sensitive data reaches public LLMs (like GPT-4 or Groq) by sanitizing inputs in real-time.
 * **Dual-Engine Detection**: Combines **Microsoft Presidio** (Pattern Matching) with **Spacy Transformers** (Context-aware NLP) for high-accuracy redaction.
 * **India-Specific PII Support**:
 *  Specialized recognizers for:
@@ -102,7 +102,7 @@ uvicorn main:app --reload --port 8000
 
 Create a .env file for your Middleware:
 
-GEMINI_API_KEY=your_google_gemini_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
 
 
 ## 🛡️ Security & Privacy

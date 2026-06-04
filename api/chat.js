@@ -9,10 +9,10 @@ export default async function handler(req, res) {
 
     // Configuration
     const CLOAK_BASE_URL = "https://pritu16345-cloak-api.hf.space";
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Securely loaded from Vercel
+    const GROQ_API_KEY = process.env.GROQ_API_KEY; // Securely loaded from Vercel
 
-    if (!GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Server Configuration Error: Gemini Key Missing" });
+    if (!GROQ_API_KEY) {
+        return res.status(500).json({ error: "Server Configuration Error: Groq Key Missing" });
     }
 
     try {
@@ -36,26 +36,33 @@ export default async function handler(req, res) {
         const safePrompt = cloakData.safe_prompt;
         const sessionId = cloakData.session_id; // IMPORTANT: We need this for Step C
 
-        // --- STEP B: CALL GEMINI API (Get AI Response) ---
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // --- STEP B: CALL GROQ API (Get AI Response) ---
+        const groqUrl = "https://api.groq.com/openai/v1/chat/completions";
         
-        const geminiResponse = await fetch(geminiUrl, {
+        const groqResponse = await fetch(groqUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${GROQ_API_KEY}`
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: "You are a helpful corporate assistant. " + safePrompt }] }]
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: "You are a helpful corporate assistant." },
+                    { role: "user", content: safePrompt }
+                ]
             })
         });
 
-        const geminiData = await geminiResponse.json();
+        const groqData = await groqResponse.json();
         
-        if (!geminiData.candidates || geminiData.candidates.length === 0) {
-            console.error("Gemini API Error Response:", geminiData);
-            const apiError = geminiData.error ? geminiData.error.message : (geminiData.promptFeedback ? `Blocked due to safety: ${JSON.stringify(geminiData.promptFeedback)}` : JSON.stringify(geminiData));
+        if (!groqData.choices || groqData.choices.length === 0) {
+            console.error("Groq API Error Response:", groqData);
+            const apiError = groqData.error ? groqData.error.message : JSON.stringify(groqData);
             throw new Error(`AI Provider Error: ${apiError}`);
         }
 
-        const aiRawReply = geminiData.candidates[0].content.parts[0].text;
+        const aiRawReply = groqData.choices[0].message.content;
 
         // --- STEP C: CALL CLOAK API (Restore/De-anonymize) ---
         // We send the safe AI response back to Cloak to restore real values using the Session ID
