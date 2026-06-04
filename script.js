@@ -110,18 +110,22 @@ async function handleSend() {
     const inputField = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const text = inputField.value;
+    const fileToUpload = selectedFile; // Capture file locally
 
-    if ((!text && !selectedFile) || inputField.disabled) return; 
+    if ((!text && !fileToUpload) || inputField.disabled) return; 
 
     // UI Message Construction
     let userMsg = text;
-    if (selectedFile && !text) {
-        userMsg = `Uploaded document: **${selectedFile.name}**`;
-    } else if (selectedFile && text) {
-        userMsg = `${text}\n\n*(Attached file: ${selectedFile.name})*`;
+    if (fileToUpload && !text) {
+        userMsg = `Uploaded document: **${fileToUpload.name}**`;
+    } else if (fileToUpload && text) {
+        userMsg = `${text}\n\n*(Attached file: ${fileToUpload.name})*`;
     }
     addChatMessage('user', userMsg);
+    
+    // Clear prompt input and file selection visually & natively immediately
     inputField.value = '';
+    clearFileSelection();
     
     // Disable inputs to prevent spam during processing and typing
     inputField.disabled = true;
@@ -139,9 +143,9 @@ async function handleSend() {
         if (activeSessionId) {
             formData.append("session_id", activeSessionId);
         }
-        if (selectedFile) {
-            formData.append("file", selectedFile);
-            addLog('FILE_UPLOAD', `Attaching file: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`, 'text-indigo-400');
+        if (fileToUpload) {
+            formData.append("file", fileToUpload);
+            addLog('FILE_UPLOAD', `Attaching file: ${fileToUpload.name} (${(fileToUpload.size / 1024).toFixed(1)} KB)`, 'text-indigo-400');
         }
         
         const response = await fetch(API_ENDPOINT, {
@@ -163,7 +167,7 @@ async function handleSend() {
         chatHistory.push({ role: "assistant", content: data.raw_ai_response });
 
         // --- STEP A: LOG THE REDACTION (OUTBOUND) ---
-        const originalLogText = text || (selectedFile ? `[Uploaded File: ${selectedFile.name}]` : "");
+        const originalLogText = text || (fileToUpload ? `[Uploaded File: ${fileToUpload.name}]` : "");
         addLog('PII_REDACTED', `Server sanitization complete.\nOriginal: "${originalLogText}"\nRedacted: "${data.redacted_input}"`, 'text-emerald-400');
         
         // --- STEP B: LOG THE RAW AI RESPONSE (INBOUND) ---
@@ -183,7 +187,7 @@ async function handleSend() {
         const entityTags = detectedEntities.length > 0 ? Array.from(new Set(detectedEntities)).join(", ") : "None";
         const status = detectedEntities.length > 0 ? "PII PROTECTED" : "CLEAN TRAFFIC";
         
-        const originalLenDisplay = text ? (text.length + " chars") : (selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : "0 chars");
+        const originalLenDisplay = text ? (text.length + " chars") : (fileToUpload ? `${(fileToUpload.size / 1024).toFixed(1)} KB` : "0 chars");
         
         auditHistory.unshift({
             time: new Date().toLocaleTimeString(),
@@ -199,12 +203,11 @@ async function handleSend() {
         addLog('CRITICAL_ERR', error.message, 'text-red-500');
         await addChatMessage('ai', `**System Error:** ${error.message}`);
     } finally {
-        // Re-enable inputs and clear file selection
+        // Re-enable inputs and clear selection focus
         inputField.disabled = false;
         sendBtn.disabled = false;
         sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         inputField.classList.remove('opacity-50', 'cursor-not-allowed');
-        clearFileSelection();
         inputField.focus();
     }
 }
