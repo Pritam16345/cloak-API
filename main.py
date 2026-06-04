@@ -85,6 +85,14 @@ passport_pattern = Pattern(name="passport_pattern", regex=r"\b[A-Z][0-9]{7}\b", 
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_PASSPORT", patterns=[passport_pattern]))
 
 # --- HELPER FUNCTIONS ---
+def get_canonical_value(val):
+    val = val.strip().lower()
+    prefixes = ["name:", "candidate:", "employee:", "student:", "employer:"]
+    for prefix in prefixes:
+        if val.startswith(prefix):
+            val = val[len(prefix):].strip()
+    return val.strip(":- ")
+
 def resolve_overlaps(results):
     # Sort by score (highest first), then length
     results.sort(key=lambda x: (x.score, x.end - x.start), reverse=True)
@@ -155,15 +163,25 @@ async def anonymize_data(
     counters = {}
     detected_list = []
 
+    # Track assigned placeholders to reuse them for identical values (case-insensitive deduplication)
+    value_to_placeholder = {}
+
     for result in results_sorted:
         entity_type = result.entity_type
         # Simplify custom tags (e.g. PROFESSIONAL_LINK -> URL)
         if entity_type == "PROFESSIONAL_LINK": entity_type = "URL"
         
-        counters[entity_type] = counters.get(entity_type, 0) + 1
-        placeholder = f"[{entity_type}_{counters[entity_type]}]"
-        
         real_value = final_text[result.start:result.end]
+        val_key = get_canonical_value(real_value)
+        mapping_key = (val_key, entity_type)
+        
+        if mapping_key in value_to_placeholder:
+            placeholder = value_to_placeholder[mapping_key]
+        else:
+            counters[entity_type] = counters.get(entity_type, 0) + 1
+            placeholder = f"[{entity_type}_{counters[entity_type]}]"
+            value_to_placeholder[mapping_key] = placeholder
+            
         entity_mapping[placeholder] = real_value
         
         if placeholder not in detected_list:
