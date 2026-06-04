@@ -27,6 +27,12 @@ function clearFileSelection() {
     filePreview.classList.remove('active');
 }
 
+function suggestPrompt(text) {
+    const inputField = document.getElementById('user-input');
+    inputField.value = text;
+    inputField.focus();
+}
+
 // --- SIDEBAR TOGGLE ---
 function toggleInspector() {
     const container = document.getElementById('inspector-container');
@@ -66,33 +72,58 @@ function switchView(viewName) {
 async function checkBackendHealth() {
     const statusText = document.getElementById('status-text');
     const statusDot = document.getElementById('status-dot');
+    
+    // Set to connecting state first
+    statusText.innerText = "Connecting...";
+    statusText.className = "text-amber-500";
+    statusDot.className = "status-dot-connecting";
+    
     try {
         // Simple ping to see if Vercel is alive
-        const res = await fetch(API_ENDPOINT, { method: 'POST', body: JSON.stringify({text: "ping"}) }); 
-        isBackendOnline = true;
-        statusText.innerText = "Online";
-        statusText.className = "text-emerald-400";
-        statusDot.className = "status-dot-on";
+        const res = await fetch(API_ENDPOINT, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({text: "ping"}) 
+        }); 
+        
+        if (res.ok) {
+            isBackendOnline = true;
+            statusText.innerText = "Online";
+            statusText.className = "text-emerald-400";
+            statusDot.className = "status-dot-on";
+        } else {
+            isBackendOnline = false;
+            statusText.innerText = "Offline";
+            statusText.className = "text-red-400";
+            statusDot.className = "status-dot-off";
+        }
     } catch (error) {
-        // Even if it fails (method not allowed etc), the server is reachable
-        isBackendOnline = true; 
-        statusText.innerText = "Online";
-        statusText.className = "text-emerald-400";
-        statusDot.className = "status-dot-on";
+        isBackendOnline = false; 
+        statusText.innerText = "Offline";
+        statusText.className = "text-red-400";
+        statusDot.className = "status-dot-off";
     }
 }
 checkBackendHealth();
+setInterval(checkBackendHealth, 15000);
 
 // --- CHAT LOGIC ---
 async function handleSend() {
     const inputField = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
     const text = inputField.value;
 
-    if (!text) return; 
+    if (!text || inputField.disabled) return; 
 
     // UI Message Construction
     addChatMessage('user', text);
     inputField.value = '';
+    
+    // Disable inputs to prevent spam during processing and typing
+    inputField.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    inputField.classList.add('opacity-50', 'cursor-not-allowed');
     
     // Clear file selection if any
     if (selectedFile) {
@@ -129,8 +160,8 @@ async function handleSend() {
         // This shows the final restoration step handled by the middleware
         addLog('DEANONYMIZE', `Entities restored via Secure Session.\nFinal Output: "${data.response}"`, 'text-purple-400');
 
-        // 2. DISPLAY FINAL MESSAGE TO USER
-        addChatMessage('ai', data.response);
+        // 2. DISPLAY FINAL MESSAGE TO USER (Wait for typing)
+        await addChatMessage('ai', data.response);
 
         // 3. UPDATE AUDIT LOG (Show specific tags like [PERSON_1])
         const detectedEntities = data.redacted_input.match(/\[.*?\]/g) || [];
@@ -150,7 +181,14 @@ async function handleSend() {
     } catch (error) {
         console.error(error);
         addLog('CRITICAL_ERR', error.message, 'text-red-500');
-        addChatMessage('ai', `**System Error:** ${error.message}`);
+        await addChatMessage('ai', `**System Error:** ${error.message}`);
+    } finally {
+        // Re-enable inputs
+        inputField.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        inputField.classList.remove('opacity-50', 'cursor-not-allowed');
+        inputField.focus();
     }
 }
 
@@ -199,45 +237,82 @@ function clearLogs() {
 }
 
 function addChatMessage(sender, content) {
-    const container = document.getElementById('chat-container');
-    const wrapper = document.createElement('div');
-    wrapper.className = `flex gap-4 max-w-3xl mx-auto msg-animate ${sender === 'user' ? 'flex-row-reverse' : ''}`;
-    
-    const avatar = document.createElement('div');
-    avatar.className = `w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-        sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-    }`;
-    avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+    return new Promise((resolve) => {
+        const container = document.getElementById('chat-container');
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex gap-4 max-w-3xl mx-auto msg-animate ${sender === 'user' ? 'flex-row-reverse' : ''}`;
+        
+        const avatar = document.createElement('div');
+        avatar.className = `w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            sender === 'user' ? 'bg-indigo-500 text-white' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+        }`;
+        avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
 
-    const contentDiv = document.createElement('div');
-    contentDiv.className = "flex-1 space-y-1";
-    
-    const meta = document.createElement('div');
-    meta.className = `flex items-baseline gap-2 ${sender === 'user' ? 'justify-end' : ''}`;
-    meta.innerHTML = `<span class="font-medium text-white text-sm">${sender === 'user' ? 'You' : 'Cloak Assistant'}</span>`;
+        const contentDiv = document.createElement('div');
+        contentDiv.className = "flex-1 space-y-1";
+        
+        const meta = document.createElement('div');
+        meta.className = `flex items-baseline gap-2 ${sender === 'user' ? 'justify-end' : ''}`;
+        meta.innerHTML = `<span class="font-medium text-white text-sm">${sender === 'user' ? 'You' : 'Cloak Assistant'}</span>`;
 
-    const bubble = document.createElement('div');
-    bubble.className = `p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
-        sender === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-900 border border-slate-800 text-slate-300 rounded-tl-none prose-content'
-    }`;
-    
-    // Safety check for marked.js
-    if (sender === 'ai') {
-        try {
-            bubble.innerHTML = marked.parse(content || "");
-        } catch (e) {
+        const bubble = document.createElement('div');
+        bubble.className = `p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
+            sender === 'user' 
+                ? 'bg-gradient-to-tr from-indigo-600 to-violet-500 text-white rounded-tr-none shadow-md shadow-indigo-500/10' 
+                : 'bg-slate-900/60 backdrop-blur border border-slate-800/80 text-slate-300 rounded-tl-none prose-content shadow-sm'
+        }`;
+        
+        contentDiv.appendChild(meta);
+        contentDiv.appendChild(bubble);
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(contentDiv);
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+
+        if (sender === 'ai') {
+            let index = 0;
+            bubble.innerHTML = "";
+            
+            const cursor = document.createElement('span');
+            cursor.className = 'inline-block w-1.5 h-4 bg-emerald-400 ml-1 animate-pulse';
+            bubble.appendChild(cursor);
+            
+            function next() {
+                if (index < content.length) {
+                    index++;
+                    const partialText = content.substring(0, index);
+                    try {
+                        bubble.innerHTML = marked.parse(partialText);
+                    } catch (e) {
+                        bubble.innerHTML = partialText;
+                    }
+                    bubble.appendChild(cursor);
+                    container.scrollTop = container.scrollHeight;
+                    setTimeout(next, 10);
+                } else {
+                    cursor.remove();
+                    try {
+                        bubble.innerHTML = marked.parse(content);
+                    } catch (e) {
+                        bubble.innerHTML = content;
+                    }
+                    container.scrollTop = container.scrollHeight;
+                    resolve();
+                }
+            }
+            next();
+        } else {
             bubble.innerHTML = content;
+            resolve();
         }
-    } else {
-        bubble.innerHTML = content;
-    }
+    });
+}
 
-    contentDiv.appendChild(meta);
-    contentDiv.appendChild(bubble);
-    wrapper.appendChild(avatar);
-    wrapper.appendChild(contentDiv);
-    container.appendChild(wrapper);
-    container.scrollTop = container.scrollHeight;
+function highlightPlaceholders(text) {
+    if (!text) return "";
+    return text.replace(/(\[([A-Z_]+)(?:_\d+)?\])/g, (match) => {
+        return `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold font-mono inline-block">${match}</span>`;
+    });
 }
 
 function addLog(type, msg, color) {
@@ -263,7 +338,7 @@ function addLog(type, msg, color) {
             <span class="font-bold text-[10px] ${color} uppercase tracking-wider">${type}</span>
             <span class="text-[9px] font-mono text-slate-500">${new Date().toLocaleTimeString()}</span>
         </div>
-        <div class="text-slate-300 font-medium whitespace-pre-wrap break-words leading-tight">${msg}</div>
+        <div class="text-slate-300 font-medium whitespace-pre-wrap break-words leading-tight">${highlightPlaceholders(msg)}</div>
     `;
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;

@@ -78,6 +78,12 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_PAN_CARD
 aadhaar_pattern = Pattern(name="aadhaar_pattern", regex=r"\b[2-9][0-9]{3}\s?[0-9]{4}\s?[0-9]{4}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_AADHAAR", patterns=[aadhaar_pattern]))
 
+voter_pattern = Pattern(name="voter_pattern", regex=r"\b[A-Z]{3}[0-9]{7}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_VOTER_ID", patterns=[voter_pattern]))
+
+passport_pattern = Pattern(name="passport_pattern", regex=r"\b[A-Z][0-9]{7}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_PASSPORT", patterns=[passport_pattern]))
+
 # --- HELPER FUNCTIONS ---
 def resolve_overlaps(results):
     # Sort by score (highest first), then length
@@ -123,17 +129,17 @@ async def anonymize_data(
             else:
                 final_text += f"\n\n[FILE CONTENT]\n{content.decode('utf-8', errors='ignore')}"
         except Exception as e:
-            return {"error": f"Failed to process file: {str(e)}"}
+            raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
 
     if not final_text.strip():
-        return {"error": "No text or file provided"}
+        raise HTTPException(status_code=400, detail="No text or file provided")
 
     # --- AGGRESSIVE SCANNING ---
     raw_results = analyzer.analyze(
         text=final_text,
         entities=[
             "PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "CREDIT_CARD",
-            "IN_PAN_CARD", "IN_AADHAAR", "IN_VOTER_ID", "IP_ADDRESS", 
+            "IN_PAN_CARD", "IN_AADHAAR", "IN_VOTER_ID", "IN_PASSPORT", "IP_ADDRESS", 
             "PROFESSIONAL_LINK", "URL"
         ],
         language="en",
@@ -203,7 +209,7 @@ def deanonymize_data(request: UnmaskRequest, db: Session = Depends(get_db)):
     
     for placeholder, real_value in entity_mapping.items():
         pattern = re.compile(re.escape(placeholder), re.IGNORECASE)
-        final_text = pattern.sub(real_value, final_text)
+        final_text = pattern.sub(lambda m, val=real_value: val, final_text)
         
     return {
         "status": "restored",
