@@ -50,7 +50,9 @@ export default async function handler(req, res) {
         const geminiData = await geminiResponse.json();
         
         if (!geminiData.candidates || geminiData.candidates.length === 0) {
-            throw new Error("AI Provider blocked the response or returned empty data.");
+            console.error("Gemini API Error Response:", geminiData);
+            const apiError = geminiData.error ? geminiData.error.message : (geminiData.promptFeedback ? `Blocked due to safety: ${JSON.stringify(geminiData.promptFeedback)}` : JSON.stringify(geminiData));
+            throw new Error(`AI Provider Error: ${apiError}`);
         }
 
         const aiRawReply = geminiData.candidates[0].content.parts[0].text;
