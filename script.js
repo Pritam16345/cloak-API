@@ -5,6 +5,8 @@ const API_ENDPOINT = "/api/chat";
 
 // State
 let auditHistory = [];
+let chatHistory = []; // Stores anonymized conversation history
+let activeSessionId = null; // Stores active multi-turn session ID
 let isBackendOnline = false;
 let selectedFile = null;
 
@@ -133,6 +135,10 @@ async function handleSend() {
         
         const formData = new FormData();
         formData.append("prompt", text);
+        formData.append("history", JSON.stringify(chatHistory));
+        if (activeSessionId) {
+            formData.append("session_id", activeSessionId);
+        }
         if (selectedFile) {
             formData.append("file", selectedFile);
             addLog('FILE_UPLOAD', `Attaching file: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`, 'text-indigo-400');
@@ -150,6 +156,11 @@ async function handleSend() {
         }
 
         const data = await response.json();
+        
+        // Save state updates for session and chat history
+        activeSessionId = data.session_id;
+        chatHistory.push({ role: "user", content: data.redacted_input });
+        chatHistory.push({ role: "assistant", content: data.raw_ai_response });
 
         // --- STEP A: LOG THE REDACTION (OUTBOUND) ---
         const originalLogText = text || (selectedFile ? `[Uploaded File: ${selectedFile.name}]` : "");
@@ -238,6 +249,8 @@ function deleteAuditRow(index) {
 function clearLogs() {
     if (confirm("Are you sure you want to clear all audit history?")) {
         auditHistory = [];
+        chatHistory = [];
+        activeSessionId = null;
         renderAuditTable();
     }
 }

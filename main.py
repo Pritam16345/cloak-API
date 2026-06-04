@@ -116,6 +116,8 @@ class UnmaskRequest(BaseModel):
 async def anonymize_data(
     prompt: str = Form(None),
     file: UploadFile = File(None),
+    session_id: str = Form(None),
+    history: str = Form(None),
     db: Session = Depends(get_db)
 ):
     final_text = prompt or ""
@@ -156,15 +158,37 @@ async def anonymize_data(
     
     analysis_results = resolve_overlaps(raw_results)
     
+    # Check if there is an existing session
+    entity_mapping = {}
+    if session_id:
+        existing_session = db.query(PrivacySession).filter(PrivacySession.session_id == session_id).first()
+        if existing_session:
+            try:
+                entity_mapping = json.loads(existing_session.entity_mapping)
+            except Exception:
+                pass
+
     # Masking
     results_sorted = sorted(analysis_results, key=lambda x: x.start, reverse=True)
     safe_prompt = final_text
-    entity_mapping = {}
     counters = {}
     detected_list = []
-
+    
     # Track assigned placeholders to reuse them for identical values (case-insensitive deduplication)
     value_to_placeholder = {}
+    
+    # Pre-populate counters and mappings from existing session
+    for placeholder, real_val in entity_mapping.items():
+        inner_tag = placeholder.strip("[]")
+        if "_" in inner_tag:
+            parts = inner_tag.rsplit("_", 1)
+            ent_type = parts[0]
+            try:
+                cnt = int(parts[1])
+                counters[ent_type] = max(counters.get(ent_type, 0), cnt)
+                value_to_placeholder[(get_canonical_value(real_val), ent_type)] = placeholder
+            except (ValueError, IndexError):
+                pass
 
     for result in results_sorted:
         entity_type = result.entity_type
@@ -190,9 +214,21 @@ async def anonymize_data(
         safe_prompt = safe_prompt[:result.start] + placeholder + safe_prompt[result.end:]
 
     # Save Session
-    session_id = str(uuid.uuid4())
-    privacy_session = PrivacySession(session_id=session_id, entity_mapping=json.dumps(entity_mapping))
-    db.add(privacy_session)
+    if session_id:
+        existing_session = db.query(PrivacySession).filter(PrivacySession.session_id == session_id).first()
+        if existing_session:
+            existing_session.entity_mapping = json.dumps(entity_mapping)
+            db.commit()
+        else:
+            session_id = str(uuid.uuid4())
+            privacy_session = PrivacySession(session_id=session_id, entity_mapping=json.dumps(entity_mapping))
+            db.add(privacy_session)
+            db.commit()
+    else:
+        session_id = str(uuid.uuid4())
+        privacy_session = PrivacySession(session_id=session_id, entity_mapping=json.dumps(entity_mapping))
+        db.add(privacy_session)
+        db.commit()
     
     # Audit Log
     try:
@@ -212,7 +248,8 @@ async def anonymize_data(
         "session_id": session_id,
         "safe_prompt": safe_prompt,
         "threats_detected": len(analysis_results) > 0,
-        "detected_entities": detected_list
+        "detected_entities": detected_list,
+        "history": history
     }
 
 @app.post("/deanonymize")

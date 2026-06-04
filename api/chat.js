@@ -38,9 +38,31 @@ export default async function handler(req, res) {
         const safePrompt = cloakData.safe_prompt;
         const sessionId = cloakData.session_id; // IMPORTANT: We need this for Step C
 
-        // --- STEP B: CALL GROQ API (Get AI Response) ---
+        // --- STEP B: CALL GROQ API (Get AI Response with Memory) ---
         const groqUrl = "https://api.groq.com/openai/v1/chat/completions";
         
+        // System Prompt to ensure Llama is cooperative and maps details via placeholders
+        const systemPrompt = "You are a helpful secure corporate assistant. You are interacting with a user through a data firewall. Sensitive PII (Personally Identifiable Information) like names, emails, and phone numbers in the prompt and documents have been redacted with placeholders (e.g. [PERSON_1], [EMAIL_ADDRESS_1], [PHONE_NUMBER_1]). You MUST use these placeholders in your response when referring to the redacted entities. Treat the placeholders as the actual values and answer the user's questions or extract information directly using them. Do not refuse to provide information about the placeholders.";
+
+        const messages = [
+            { role: "system", content: systemPrompt }
+        ];
+
+        // Append anonymized conversation history if present
+        if (cloakData.history) {
+            try {
+                const parsedHistory = JSON.parse(cloakData.history);
+                if (Array.isArray(parsedHistory)) {
+                    messages.push(...parsedHistory);
+                }
+            } catch (e) {
+                console.error("Failed to parse chat history:", e);
+            }
+        }
+
+        // Add the current anonymized user prompt
+        messages.push({ role: "user", content: safePrompt });
+
         const groqResponse = await fetch(groqUrl, {
             method: 'POST',
             headers: { 
@@ -49,10 +71,7 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: "You are a helpful corporate assistant." },
-                    { role: "user", content: safePrompt }
-                ]
+                messages: messages
             })
         });
 
@@ -85,11 +104,12 @@ export default async function handler(req, res) {
         const finalRestoredResponse = unmaskData.final_restored_response;
 
         // --- STEP D: RETURN RESULT TO FRONTEND ---
-        // We return the restored response for the user, but keep safePrompt for the Inspector
+        // We return the restored response for the user, keep safePrompt/raw_ai_response for logs, and return sessionId
         res.status(200).json({
             response: finalRestoredResponse, // Restored for the user
             redacted_input: safePrompt,      // Used for "PII_REDACTED" log
-            raw_ai_response: aiRawReply      // NEW: Added for "AI_RESPONSE" log
+            raw_ai_response: aiRawReply,     // Used for "AI_RESPONSE" log
+            session_id: sessionId            // State session ID for multi-turn unmasking
         });
 
     } catch (error) {
