@@ -144,6 +144,37 @@ async def anonymize_data(
     if not final_text.strip():
         raise HTTPException(status_code=400, detail="No text or file provided")
 
+    # Check if there is an existing session and load mapping
+    entity_mapping = {}
+    if session_id:
+        existing_session = db.query(PrivacySession).filter(PrivacySession.session_id == session_id).first()
+        if existing_session:
+            try:
+                entity_mapping = json.loads(existing_session.entity_mapping)
+            except Exception:
+                pass
+
+    # Pre-mask known session entities in the prompt
+    if entity_mapping:
+        replacements = []
+        for placeholder, real_val in entity_mapping.items():
+            if "PERSON" in placeholder:
+                parts = [p.strip() for p in re.split(r'\s+', real_val) if len(p.strip()) > 2]
+                for p in parts:
+                    replacements.append((p, placeholder))
+            else:
+                if len(real_val) > 4:
+                    replacements.append((real_val, placeholder))
+        
+        # Sort replacements by length descending to prevent substring overlap
+        replacements.sort(key=lambda x: len(x[0]), reverse=True)
+        for word, placeholder in replacements:
+            esc_word = re.escape(word)
+            prefix = r'\b' if word[0].isalnum() else r''
+            suffix = r'\b' if word[-1].isalnum() else r''
+            pattern = re.compile(prefix + esc_word + suffix, re.IGNORECASE)
+            final_text = pattern.sub(placeholder, final_text)
+
     # --- AGGRESSIVE SCANNING ---
     raw_results = analyzer.analyze(
         text=final_text,
@@ -157,16 +188,6 @@ async def anonymize_data(
     )
     
     analysis_results = resolve_overlaps(raw_results)
-    
-    # Check if there is an existing session
-    entity_mapping = {}
-    if session_id:
-        existing_session = db.query(PrivacySession).filter(PrivacySession.session_id == session_id).first()
-        if existing_session:
-            try:
-                entity_mapping = json.loads(existing_session.entity_mapping)
-            except Exception:
-                pass
 
     # Masking
     results_sorted = sorted(analysis_results, key=lambda x: x.start, reverse=True)
