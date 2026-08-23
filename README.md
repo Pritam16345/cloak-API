@@ -45,7 +45,7 @@ This system implements a sophisticated Microservices Orchestrator Architecture, 
   * 🇮🇳 PAN Cards
   * 🇮🇳 Voter IDs
   * Emails, Phone Numbers, and Names
-* **Live Security Inspector & Latency Telemetry**: A real-time monitoring terminal in the UI that displays the full data journey (Interception → Redaction → AI Processing → Restoration) along with granular millisecond latency benchmarks.
+* **Live Security Inspector**: A real-time monitoring terminal in the UI that displays the full data journey (Interception → Redaction → AI Processing → Restoration).
 * **Bidirectional Anonymization**: Automatically "unmasks" AI responses, preserving the context of the conversation for the user while guaranteeing the data remained hidden from the AI.
 * **Audit Logging & Compliance Export**: Tracks all redaction events in a secure SQLite database for security auditing, with a 1-click **CSV Export** feature for compliance reporting.
 
@@ -118,6 +118,3 @@ CloakEnt/
 
 * **Local Processing Guarantee:** When deployed locally or on a private VPC, no PII data leaves your internal network. Only fully anonymized tokens (e.g., `[PERSON_1]`) are dispatched to external AI APIs.
 * **Ephemeral Session Storage:** Session mapping data (used to deanonymize the AI's response) is managed efficiently in SQLite and can be scoped to ephemeral lifecycles depending on deployment environment (e.g., container memory).
-* **Telemetry & Overhead:** The architecture is built with an emphasis on low-latency overhead. Typical DLP redaction adds minimal latency, continuously benchmarked and visualized directly in the application's Live Inspector.
-
-

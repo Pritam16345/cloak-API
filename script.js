@@ -178,13 +178,6 @@ async function handleSend() {
         // This shows the final restoration step handled by the middleware
         addLog('DEANONYMIZE', `Entities restored via Secure Session.\nFinal Output: "${data.response}"`, 'text-purple-400');
 
-        // --- STEP D: LOG THE LATENCY BENCHMARK ---
-        if (data.latency) {
-            const lat = data.latency;
-            const latencyLog = `Telemetry Overview:\n• Sanitization: ${lat.sanitize_ms}ms\n• LLM Inference (Groq): ${lat.llm_ms}ms\n• Deanonymization: ${lat.deanonymize_ms}ms\n• Total Roundtrip: ${lat.total_ms}ms\n• Security Overhead: ${lat.overhead_ms}ms (${lat.overhead_percent}%)`;
-            addLog('LATENCY_BENCHMARK', latencyLog, 'text-cyan-400');
-        }
-
         // 2. DISPLAY FINAL MESSAGE TO USER (Wait for typing)
         await addChatMessage('ai', data.response);
 
