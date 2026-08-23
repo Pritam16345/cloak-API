@@ -91,6 +91,9 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET"
 github_token_pattern = Pattern(name="github_token_pattern", regex=r"\b(gh[pousr]_[A-Za-z0-9_]{36,255}|github_pat_[A-Za-z0-9_]{22,255})\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[github_token_pattern]))
 
+gemini_key_pattern = Pattern(name="gemini_key_pattern", regex=r"\bAIzaSy[A-Za-z0-9\-_]{33}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[gemini_key_pattern]))
+
 generic_api_key_pattern = Pattern(name="generic_api_key_pattern", regex=r"\b(?:sk|gsk|sk-ant|key)-[A-Za-z0-9\-_]{20,}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[generic_api_key_pattern]))
 

@@ -8,50 +8,58 @@ app_port: 7860
 pinned: false
 ---
 
-# 🛡️ CloakEnt | Enterprise AI Data Firewall
+# 🛡️ CloakEnt | Enterprise AI Data Firewall & DLP Gateway
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-24.0-2496ED.svg)](https://www.docker.com/)
 [![Hugging Face](https://img.shields.io/badge/Deployed%20on-Hugging%20Face-FFD21E.svg)](https://huggingface.co/spaces)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000.svg)](https://vercel.com/)
 
-**CloakEnt** is a Zero-Trust Data Loss Prevention (DLP) gateway designed to secure enterprise interactions with public AI models. It acts as an intelligent firewall, intercepting and redacting Sensitive Personally Identifiable Information (PII) before it leaves your secure environment. This version implements a sophisticated Microservices Orchestrator Architecture, separating security logic from AI processing to ensure maximum data sovereignty.
+**CloakEnt** is a Zero-Trust Data Loss Prevention (DLP) gateway designed to secure enterprise interactions with public AI models. It acts as an intelligent firewall, intercepting and redacting Sensitive Personally Identifiable Information (PII) and Developer Secrets before they leave your secure environment. 
+
+This system implements a sophisticated Microservices Orchestrator Architecture, separating security logic from AI processing to ensure maximum data sovereignty and compliance.
 
 ---
 
 ## 🚀 Live Demo
 
-* **Frontend (Chat Interface):** [cloakent-api-website.vercel.app](https://cloak-api.vercel.app/)
-* **Backend (API Docs):** Hosted on Hugging Face Spaces [cloakent-api.hf.space](https://pritu16345-cloak-api.hf.space)
-
-
-
-## 🚀 Key Features
-
-* **Zero-Trust Orchestration**: Implements a middleware-based orchestrator that ensures no sensitive data reaches public LLMs (like GPT-4 or Groq) by sanitizing inputs in real-time.
-* **Dual-Engine Detection**: Combines **Microsoft Presidio** (Pattern Matching) with **Spacy Transformers** (Context-aware NLP) for high-accuracy redaction.
-* **India-Specific PII Support**:
-*  Specialized recognizers for:
-    * 🇮🇳 Aadhaar Cards
-    * 🇮🇳 PAN Cards
-    * 🇮🇳 Voter IDs
-    * Emails
-* **Document Intelligence**: Built-in support for parsing and sanitizing **PDF documents** (e.g., resumes, invoices).
-* **Live Security Inspector**: A real-time monitoring terminal in the UI that displays the full data journey: Interception → Redaction → AI Processing → Restoration.
-* **Bidirectional Anonymization**: Automatically "unmasks" AI responses, preserving the context of the conversation for the user while keeping the data hidden from the AI.
-* **Audit Logging**: Tracks all redaction events in a secure SQLite database for compliance and security auditing.
+* **Frontend UI (Chat & Telemetry Interface):** [cloakent-api-website.vercel.app](https://cloak-api.vercel.app/)
+* **Backend Security Engine (API Docs):** [cloakent-api.hf.space](https://pritu16345-cloak-api.hf.space/docs)
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Key Capabilities & Features
+
+* **Zero-Trust Orchestration**: A middleware-based orchestrator that ensures no sensitive data reaches public LLMs (e.g., GPT-120b, Groq) by sanitizing inputs in real-time.
+* **Dual-Engine NLP Detection**: Combines **Microsoft Presidio** (Pattern Matching) with **spaCy Transformers** (`en_core_web_trf` for Context-aware NLP) for high-accuracy redaction.
+* **Context-Aware Pre-Masking (Multi-Turn Memory)**: An intelligent loop that aggressively pre-masks known session entities (even in lowercase/informal formats) to prevent multi-turn context leakage.
+* **DevSecOps Secrets Scanning**: Active pattern recognizers designed to detect and redact critical engineering credentials:
+  * AWS Access Keys
+  * GitHub Personal Access Tokens (PATs)
+  * Google/Gemini API Keys
+  * JWT Bearer Tokens
+  * Generic Application Secrets
+* **India-Specific PII Support**:
+  * 🇮🇳 Aadhaar Cards
+  * 🇮🇳 PAN Cards
+  * 🇮🇳 Voter IDs
+  * Emails, Phone Numbers, and Names
+* **Live Security Inspector & Latency Telemetry**: A real-time monitoring terminal in the UI that displays the full data journey (Interception → Redaction → AI Processing → Restoration) along with granular millisecond latency benchmarks.
+* **Bidirectional Anonymization**: Automatically "unmasks" AI responses, preserving the context of the conversation for the user while guaranteeing the data remained hidden from the AI.
+* **Audit Logging & Compliance Export**: Tracks all redaction events in a secure SQLite database for security auditing, with a 1-click **CSV Export** feature for compliance reporting.
+
+---
+
+## 🛠️ Tech Stack & Architecture
 
 * **Backend Framework**: FastAPI (Python)
-* **Middleware Orchestrator**: Node.js (Vercel Serverless Functions)
-* **NLP Engine**: Spacy (`en_core_web_trf` for production accuracy)
+* **Middleware Proxy**: Vercel Serverless Edge Functions (`api/chat.js`)
+* **NLP Engine**: spaCy (`en_core_web_trf`)
 * **PII Detection**: Microsoft Presidio Analyzer & Anonymizer
-* **Database**: SQLite + SQLAlchemy (Audit Logs)
+* **Database**: SQLite + SQLAlchemy (Ephemeral Session Mapping)
 * **Containerization**: Docker (Optimized for Hugging Face Spaces)
-* **Frontend**: Vanilla JavaScript, Tailwind CSS (Glassmorphism UI)
+* **Frontend UI**: Vanilla JavaScript, Tailwind CSS (Glassmorphism & Live Telemetry)
 
 ---
 
@@ -61,54 +69,55 @@ pinned: false
 CloakEnt/
 ├── api/
 │   └── chat.js          # 🌐 Node.js Secure Middleware (Orchestrator)
-├── main.py              # 🧠 Core Python API (Anonymize/Deanonymize Logic)
+├── main.py              # 🧠 Core Python API (Anonymize/Deanonymize & DevSecOps Logic)
 ├── database.py          # 🗄️ SQLAlchemy Models & Audit Logging
 ├── Dockerfile           # 🐳 Multi-layer Container Configuration
 ├── requirements.txt     # 📦 Pinned Project Dependencies
 ├── index.html           # 🎨 Frontend Interface (Vercel)
-├── script.js            # ⚡ UI Logic & Middleware Integration
+├── script.js            # ⚡ UI Logic, Telemetry, & Middleware Integration
 ├── style.css            # 💅 Enterprise Dark Theme Styling
-└── README.md            # 📄 Professional Documentation
+└── README.md            # 📄 System Documentation
 ```
 
-## ⚡ Getting Started (Local)
+---
 
-Prerequisites :-
+## ⚡ Getting Started (Local Development)
 
-Python 3.9+
+### Prerequisites
+- Python 3.9+
+- Node.js (for Vercel CLI/Middleware)
+- Git
 
-Node.js (for Middleware)
+### Installation & Setup
 
-Git
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Pritam16345/cloak-API.git
+   cd cloak-API
+   ```
 
-Installation :-
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Clone the repository:
+3. **Run the Backend Security Server (FastAPI):**
+   ```bash
+   uvicorn main:app --reload --port 8000
+   ```
 
-git clone https://github.com/Pritam16345/cloak-API.git
+4. **Configure Environment Variables:**
+   Create a `.env` file in the root directory for your Middleware proxy to utilize.
+   ```env
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
 
-cd cloak-API
+---
 
+## 🛡️ Security & Privacy Architecture
 
-Install Python dependencies:
+* **Local Processing Guarantee:** When deployed locally or on a private VPC, no PII data leaves your internal network. Only fully anonymized tokens (e.g., `[PERSON_1]`) are dispatched to external AI APIs.
+* **Ephemeral Session Storage:** Session mapping data (used to deanonymize the AI's response) is managed efficiently in SQLite and can be scoped to ephemeral lifecycles depending on deployment environment (e.g., container memory).
+* **Telemetry & Overhead:** The architecture is built with an emphasis on low-latency overhead. Typical DLP redaction adds minimal latency, continuously benchmarked and visualized directly in the application's Live Inspector.
 
-pip install -r requirements.txt
-
-
-Run the Backend Server:
-
-uvicorn main:app --reload --port 8000
-
-
-Create a .env file for your Middleware:
-
-GROQ_API_KEY=your_groq_api_key_here
-
-
-## 🛡️ Security & Privacy
-Local Processing: When running locally, no data leaves your machine.
-
-Ephemeral Storage: In the cloud deployment, uploaded files are processed in memory and not permanently stored on the disk.
-
-Audit Logs: Sensitive data in logs is hashed or masked based on configuration.
 
