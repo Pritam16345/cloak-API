@@ -93,7 +93,7 @@
                         Securely interact with public LLMs. CloakEnt intercepts, redacts PII locally, and restores original values on return.
                     </p>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
                         <div onclick="suggestPrompt('Here is my Aadhaar: 3204 9876 5432 and PAN: ABCDE1234F. List the exact IDs you see in this prompt.')" 
                              class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
                             <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition duration-300">
@@ -119,6 +119,15 @@
                             </div>
                             <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Passports & Links</h4>
                             <p class="text-slate-400 text-xs leading-normal">Test Voter IDs, Passports, and git/social links.</p>
+                        </div>
+
+                        <div onclick="suggestPrompt('Deploy config: AWS_KEY=AKIAIOSFODNN7EXAMPLE, GITHUB_TOKEN=ghp_aB1c2D3e4F5g6H7i8J9k0L1m2N3o4P5q6R7s, OPENAI_KEY=sk-proj-abc1234567890defghij. Help me verify this setup.')" 
+                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition duration-300">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Dev Secrets & Keys</h4>
+                            <p class="text-slate-400 text-xs leading-normal">Test redaction for AWS keys, GitHub tokens, and API credentials.</p>
                         </div>
                     </div>
                 </div>
@@ -176,7 +185,12 @@
                 <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
                     <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/30">
                         <h3 class="font-semibold text-white">Traffic Interception Log</h3>
-                        <button onclick="clearLogs()" class="text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-3 py-1 rounded hover:bg-red-500/10 transition">Clear All History</button>
+                        <div class="flex items-center gap-3">
+                            <button onclick="exportAuditCSV()" class="text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 rounded hover:bg-emerald-500/20 transition flex items-center gap-1.5 font-medium">
+                                <i class="fas fa-download"></i> Export CSV
+                            </button>
+                            <button onclick="clearLogs()" class="text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-3 py-1 rounded hover:bg-red-500/10 transition">Clear All History</button>
+                        </div>
                     </div>
                     <table class="w-full text-left text-sm text-slate-400">
                         <thead class="bg-slate-950 text-slate-200 font-medium uppercase text-xs tracking-wider">

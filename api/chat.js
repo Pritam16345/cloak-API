@@ -18,8 +18,11 @@ export default async function handler(req, res) {
     }
 
     try {
+        const tStart = Date.now();
+
         // --- STEP A: CALL CLOAK API (Sanitize PII) ---
         // We forward the raw multipart request stream directly to Hugging Face
+        const tSanitizeStart = Date.now();
         const cloakResponse = await fetch(`${CLOAK_BASE_URL}/anonymize`, {
             method: 'POST',
             headers: {
@@ -37,8 +40,10 @@ export default async function handler(req, res) {
         const cloakData = await cloakResponse.json();
         const safePrompt = cloakData.safe_prompt;
         const sessionId = cloakData.session_id; // IMPORTANT: We need this for Step C
+        const sanitizeMs = Date.now() - tSanitizeStart;
 
         // --- STEP B: CALL GROQ API (Get AI Response with Memory) ---
+        const tLlmStart = Date.now();
         const groqUrl = "https://api.groq.com/openai/v1/chat/completions";
         
         // System Prompt to ensure Llama is cooperative and maps details via placeholders
@@ -84,9 +89,11 @@ export default async function handler(req, res) {
         }
 
         const aiRawReply = groqData.choices[0].message.content;
+        const llmMs = Date.now() - tLlmStart;
 
         // --- STEP C: CALL CLOAK API (Restore/De-anonymize) ---
         // We send the safe AI response back to Cloak to restore real values using the Session ID
+        const tDeanonymizeStart = Date.now();
         const unmaskRes = await fetch(`${CLOAK_BASE_URL}/deanonymize`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -102,6 +109,10 @@ export default async function handler(req, res) {
 
         const unmaskData = await unmaskRes.json();
         const finalRestoredResponse = unmaskData.final_restored_response;
+        const deanonymizeMs = Date.now() - tDeanonymizeStart;
+        const totalMs = Date.now() - tStart;
+        const overheadMs = sanitizeMs + deanonymizeMs;
+        const overheadPercent = Math.max(1, Math.round((overheadMs / totalMs) * 100));
 
         // --- STEP D: RETURN RESULT TO FRONTEND ---
         // We return the restored response for the user, keep safePrompt/raw_ai_response for logs, and return sessionId
@@ -109,7 +120,15 @@ export default async function handler(req, res) {
             response: finalRestoredResponse, // Restored for the user
             redacted_input: safePrompt,      // Used for "PII_REDACTED" log
             raw_ai_response: aiRawReply,     // Used for "AI_RESPONSE" log
-            session_id: sessionId            // State session ID for multi-turn unmasking
+            session_id: sessionId,           // State session ID for multi-turn unmasking
+            latency: {
+                sanitize_ms: sanitizeMs,
+                llm_ms: llmMs,
+                deanonymize_ms: deanonymizeMs,
+                total_ms: totalMs,
+                overhead_ms: overheadMs,
+                overhead_percent: overheadPercent
+            }
         });
 
     } catch (error) {

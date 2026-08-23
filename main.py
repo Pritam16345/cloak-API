@@ -84,6 +84,19 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_VOTER_ID
 passport_pattern = Pattern(name="passport_pattern", regex=r"\b[A-Z][0-9]{7}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="IN_PASSPORT", patterns=[passport_pattern]))
 
+# 6. Developer Secrets, Tokens & API Keys (DevSecOps)
+aws_key_pattern = Pattern(name="aws_key_pattern", regex=r"\bAKIA[0-9A-Z]{16}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[aws_key_pattern]))
+
+github_token_pattern = Pattern(name="github_token_pattern", regex=r"\b(gh[pousr]_[A-Za-z0-9_]{36,255}|github_pat_[A-Za-z0-9_]{22,255})\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[github_token_pattern]))
+
+generic_api_key_pattern = Pattern(name="generic_api_key_pattern", regex=r"\b(?:sk|gsk|sk-ant|key)-[A-Za-z0-9\-_]{20,}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[generic_api_key_pattern]))
+
+jwt_token_pattern = Pattern(name="jwt_token_pattern", regex=r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]{10,}\.[A-Za-z0-9._-]{10,}\b", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[jwt_token_pattern]))
+
 # --- HELPER FUNCTIONS ---
 def get_canonical_value(val):
     val = val.strip().lower()
@@ -181,7 +194,7 @@ async def anonymize_data(
         entities=[
             "PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "CREDIT_CARD",
             "IN_PAN_CARD", "IN_AADHAAR", "IN_VOTER_ID", "IN_PASSPORT", "IP_ADDRESS", 
-            "PROFESSIONAL_LINK", "URL"
+            "PROFESSIONAL_LINK", "URL", "DEV_SECRET"
         ],
         language="en",
         score_threshold=0.25 # Extremely low threshold: Catch everything suspicious
