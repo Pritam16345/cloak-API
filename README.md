@@ -26,6 +26,7 @@ This system implements a sophisticated Microservices Orchestrator Architecture, 
 
 * **Frontend UI (Chat & Telemetry Interface):** [cloakent-api-website.vercel.app](https://cloak-api.vercel.app/)
 * **Backend Security Engine (API Docs):** [cloakent-api.hf.space](https://pritu16345-cloak-api.hf.space/docs)
+* **Comprehensive Project Explanation & Guide:** [PROJECT_EXPLANATION.md](PROJECT_EXPLANATION.md)
 
 ---
 
