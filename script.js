@@ -35,6 +35,15 @@ function suggestPrompt(text) {
     inputField.focus();
 }
 
+// Enter key to send message
+const userInputField = document.getElementById('user-input');
+userInputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+    }
+});
+
 // --- SIDEBAR TOGGLE ---
 function toggleInspector() {
     const container = document.getElementById('inspector-container');

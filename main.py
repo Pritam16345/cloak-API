@@ -55,7 +55,7 @@ except Exception as e:
 # --- AGGRESSIVE RECOGNIZERS (Score = 1.0 means "Always Redact") ---
 
 # 1. Email (Stricter & Higher Score)
-email_pattern = Pattern(name="email_pattern", regex=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", score=1.0)
+email_pattern = Pattern(name="email_pattern", regex=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="EMAIL_ADDRESS", patterns=[email_pattern]))
 
 # 2. Phone Number (Catch +91, 000-000, etc.)
@@ -63,13 +63,13 @@ phone_pattern = Pattern(name="phone_pattern", regex=r"(\+?(\d{1,3})?[- .]?\(?\d{
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PHONE_NUMBER", patterns=[phone_pattern]))
 
 # 3. LinkedIn & GitHub URLs (Resume Leaks)
-link_pattern = Pattern(name="link_pattern", regex=r"((linkedin\.com\/in\/|github\.com\/)[\w\-\_]+)", score=1.0)
+link_pattern = Pattern(name="link_pattern", regex=r"((linkedin\.com/in/|github\.com/)[\w\-_]+)", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PROFESSIONAL_LINK", patterns=[link_pattern]))
 
-# 4. "Context" Name Recognition (e.g., "Name: Rahul")
-# Catches lines starting with Name:, Candidate:, etc.
-label_name_pattern = Pattern(name="label_name", regex=r"(?i)(Name|Candidate|Employee|Student)(\s*[:\-]\s*)([A-Z][a-z]+ [A-Z][a-z]+)", score=1.0)
-analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PERSON", patterns=[label_name_pattern]))
+# 4. "Context" Name Recognition (e.g., "Name: Rahul", "Candidate: Rahul Kumar Sharma")
+# Catches lines starting with Name:, Candidate:, etc. on horizontal line without crossing newlines
+label_name_pattern = Pattern(name="label_name", regex=r"(?i:name|candidate|employee|student|employer)([^\S\r\n]*[:\-][^\S\r\n]*)([A-Z][a-zA-Z]+(?:[^\S\r\n]+[A-Z][a-zA-Z]+)*)", score=1.0)
+analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="PERSON", patterns=[label_name_pattern], global_regex_flags=0))
 
 # 5. Indian Documents
 pan_pattern = Pattern(name="pan_pattern", regex=r"\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b", score=1.0)
@@ -94,7 +94,7 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET"
 gemini_key_pattern = Pattern(name="gemini_key_pattern", regex=r"\bAIzaSy[A-Za-z0-9\-_]{33}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[gemini_key_pattern]))
 
-generic_api_key_pattern = Pattern(name="generic_api_key_pattern", regex=r"\b(?:sk|gsk|sk-ant|key)-[A-Za-z0-9\-_]{20,}\b", score=1.0)
+generic_api_key_pattern = Pattern(name="generic_api_key_pattern", regex=r"\b(?:sk|gsk|sk-ant|key)[-_][A-Za-z0-9\-_]{20,}\b", score=1.0)
 analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET", patterns=[generic_api_key_pattern]))
 
 jwt_token_pattern = Pattern(name="jwt_token_pattern", regex=r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]{10,}\.[A-Za-z0-9._-]{10,}\b", score=1.0)
@@ -103,10 +103,7 @@ analyzer.registry.add_recognizer(PatternRecognizer(supported_entity="DEV_SECRET"
 # --- HELPER FUNCTIONS ---
 def get_canonical_value(val):
     val = val.strip().lower()
-    prefixes = ["name:", "candidate:", "employee:", "student:", "employer:"]
-    for prefix in prefixes:
-        if val.startswith(prefix):
-            val = val[len(prefix):].strip()
+    val = re.sub(r'^(?:name|candidate|employee|student|employer)[^\S\r\n]*[:\-][^\S\r\n]*', '', val, flags=re.IGNORECASE)
     return val.strip(":- ")
 
 def resolve_overlaps(results):
@@ -138,11 +135,17 @@ async def anonymize_data(
 ):
     final_text = prompt or ""
     
-    # PDF EXTRACTION
+    # FILE EXTRACTION
     if file:
         try:
+            # Reject binary image formats explicitly
+            is_image = (file.content_type and file.content_type.startswith("image/")) or (file.filename and file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')))
+            if is_image:
+                raise HTTPException(status_code=400, detail="Image files are not supported. Please upload a PDF or text document.")
+
             content = await file.read()
-            if file.content_type == "application/pdf" or file.filename.endswith(".pdf"):
+            is_pdf = file.content_type == "application/pdf" or (file.filename and file.filename.lower().endswith(".pdf"))
+            if is_pdf:
                 pdf_reader = PdfReader(io.BytesIO(content))
                 pdf_text = ""
                 for page in pdf_reader.pages:
@@ -154,6 +157,8 @@ async def anonymize_data(
                 final_text += f"\n\n[FILE CONTENT START]\n{pdf_text}\n[FILE CONTENT END]"
             else:
                 final_text += f"\n\n[FILE CONTENT]\n{content.decode('utf-8', errors='ignore')}"
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
 
@@ -175,7 +180,9 @@ async def anonymize_data(
         replacements = []
         for placeholder, real_val in entity_mapping.items():
             if "PERSON" in placeholder:
-                parts = [p.strip() for p in re.split(r'\s+', real_val) if len(p.strip()) > 2]
+                clean_val = get_canonical_value(real_val)
+                # Split into individual name tokens (ignoring short particles and common label prefixes)
+                parts = [p.strip() for p in re.split(r'\s+', clean_val) if len(p.strip()) > 2 and p.lower() not in {"name", "candidate", "employee", "student", "employer"}]
                 for p in parts:
                     replacements.append((p, placeholder))
             else:
@@ -185,6 +192,8 @@ async def anonymize_data(
         # Sort replacements by length descending to prevent substring overlap
         replacements.sort(key=lambda x: len(x[0]), reverse=True)
         for word, placeholder in replacements:
+            if not word:
+                continue
             esc_word = re.escape(word)
             prefix = r'\b' if word[0].isalnum() else r''
             suffix = r'\b' if word[-1].isalnum() else r''

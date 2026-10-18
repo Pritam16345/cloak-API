@@ -2,7 +2,13 @@
 // It protects your keys and orchestrates the security pipeline.
 
 export default async function handler(req, res) {
-    // 1. CORS & Method Check
+    // 1. CORS Preflight & Method Check
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        return res.status(200).end();
+    }
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -104,7 +110,8 @@ export default async function handler(req, res) {
         });
 
         if (!unmaskRes.ok) {
-            throw new Error("Cloak Security Engine (Deanonymize) Failed");
+            const err = await unmaskRes.text().catch(() => "");
+            throw new Error(`Cloak Security Engine (Deanonymize) Failed: ${err}`);
         }
 
         const unmaskData = await unmaskRes.json();
