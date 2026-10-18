@@ -94,40 +94,72 @@
                     </p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-                        <div onclick="suggestPrompt('Here is my Aadhaar: 3204 9876 5432 and PAN: ABCDE1234F. List the exact IDs you see in this prompt.')" 
-                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition duration-300">
-                                <i class="fas fa-id-card"></i>
+                        <div onclick="suggestPrompt('KYC Verification Dossier: Aadhaar 3204 9876 5432, PAN ABCDE1234F, Voter ID XYZ9876543, and Passport J9876543. Verify all Indian government ID formats.')" 
+                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm flex flex-col justify-between">
+                            <div>
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition duration-300">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Indian Government IDs</h4>
+                                <p class="text-slate-400 text-xs leading-normal mb-3">Aadhaar, PAN, Voter ID, and Passport format detection.</p>
                             </div>
-                            <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Indian ID Redaction</h4>
-                            <p class="text-slate-400 text-xs leading-normal">Test mask for Aadhaar Card and PAN Card patterns.</p>
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">AADHAAR</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PAN</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">VOTER</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PASSPORT</span>
+                            </div>
                         </div>
                         
-                        <div onclick="suggestPrompt('I am Rahul Sharma. My phone is +91 9988776655 and email is rahul@example.com. Extract my name, phone, and email from this message.')" 
-                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
-                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition duration-300">
-                                <i class="fas fa-envelope"></i>
+                        <div onclick="suggestPrompt('Candidate: Vikram Malhotra, Principal Architect. Contact: vikram.malhotra@enterprise-ai.org or +91 98765 43210. Profiles: linkedin.com/in/vikram-malhotra and github.com/vikram-m. Summarize his credentials.')" 
+                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm flex flex-col justify-between">
+                            <div>
+                                <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition duration-300">
+                                    <i class="fas fa-user-shield"></i>
+                                </div>
+                                <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Executive PII & Profiles</h4>
+                                <p class="text-slate-400 text-xs leading-normal mb-3">Names, emails, phones, LinkedIn, and GitHub profiles.</p>
                             </div>
-                            <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Contact Anonymizer</h4>
-                            <p class="text-slate-400 text-xs leading-normal">Test protection for names, emails, and phone numbers.</p>
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PERSON</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">EMAIL</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PHONE</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">URL</span>
+                            </div>
                         </div>
                         
-                        <div onclick="suggestPrompt('Here is my GitHub profile: github.com/dev-test. Voter ID is XYZ9876543 and Passport: J9876543. Summarize the details I provided.')" 
-                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
-                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-3 group-hover:scale-110 transition duration-300">
-                                <i class="fas fa-passport"></i>
+                        <div onclick="suggestPrompt('Deploy configuration audit: AWS_KEY=AKIAIOSFODNN7EXAMPLE, GITHUB_PAT=ghp_aB1c2D3e4F5g6H7i8J9k0L1m2N3o4P5q6R7s, GEMINI_KEY=AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q, GROQ_KEY=gsk_sample1234567890abcdefghijklmnopqrstuv. Verify credential safety.')" 
+                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm flex flex-col justify-between">
+                            <div>
+                                <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition duration-300">
+                                    <i class="fas fa-key"></i>
+                                </div>
+                                <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">DevSecOps & Cloud Keys</h4>
+                                <p class="text-slate-400 text-xs leading-normal mb-3">AWS, GitHub PATs, Google Gemini, and Groq API keys.</p>
                             </div>
-                            <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Passports & Links</h4>
-                            <p class="text-slate-400 text-xs leading-normal">Test Voter IDs, Passports, and git/social links.</p>
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">AWS_KEY</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">GITHUB_PAT</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">GEMINI</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">GROQ_KEY</span>
+                            </div>
                         </div>
 
-                        <div onclick="suggestPrompt('Deploy config: AWS_KEY=AKIAIOSFODNN7EXAMPLE, GITHUB_TOKEN=ghp_aB1c2D3e4F5g6H7i8J9k0L1m2N3o4P5q6R7s, OPENAI_KEY=sk-proj-abc1234567890defghij. Help me verify this setup.')" 
-                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm">
-                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition duration-300">
-                                <i class="fas fa-key"></i>
+                        <div onclick="suggestPrompt('Security Incident Report: Payment card 4012 8888 8888 1881 used from internal IP 192.168.1.105 and proxy 10.240.0.1 with session JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c hitting https://internal-db.corp.net/admin. Analyze this threat.')" 
+                             class="bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900/60 p-4 rounded-xl cursor-pointer transition group shadow-sm backdrop-blur-sm flex flex-col justify-between">
+                            <div>
+                                <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition duration-300">
+                                    <i class="fas fa-network-wired"></i>
+                                </div>
+                                <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Financial & Infra Sec</h4>
+                                <p class="text-slate-400 text-xs leading-normal mb-3">Credit cards, internal IPs, JWT bearer tokens, and internal URLs.</p>
                             </div>
-                            <h4 class="font-bold text-xs text-white uppercase tracking-wider mb-1">Dev Secrets & Keys</h4>
-                            <p class="text-slate-400 text-xs leading-normal">Test redaction for AWS keys, GitHub tokens, and API credentials.</p>
+                            <div class="flex flex-wrap gap-1 mt-auto">
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">CARD</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">IP_ADDR</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">JWT</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">INTERNAL_URL</span>
+                            </div>
                         </div>
                     </div>
                 </div>
